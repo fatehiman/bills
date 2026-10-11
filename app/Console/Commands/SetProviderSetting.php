@@ -8,7 +8,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('bills:provider-set {provider} {name} {value? : Value (asked if empty)}')]
+#[Signature('bills:provider-set {provider} {name} {value? : Value (asked if empty, use - to read it from stdin)}')]
 #[Description('Set a provider setting, for example: bills:provider-set zohal token <value>')]
 class SetProviderSetting extends Command
 {
@@ -28,6 +28,9 @@ class SetProviderSetting extends Command
         }
 
         $value = $this->argument('value') ?? $this->secret('Value');
+        if ($value === '-') {
+            $value = trim((string) fgets(STDIN));
+        }
         ProviderSetting::write($provider->key(), $name, $value);
         $this->info('Saved.');
 

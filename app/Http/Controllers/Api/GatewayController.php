@@ -54,7 +54,7 @@ class GatewayController extends Controller
         } catch (ProviderException $e) {
             return $this->error('invalid_identifier', $e->getMessage(), 422);
         } catch (GatewayException $e) {
-            return $this->error($e->status === 502 ? 'providers_failed' : 'not_available', $e->getMessage(), $e->status, ['attempts' => $e->attempts]);
+            return $this->error($e->errorCode, $e->getMessage(), $e->status, $e->attempts ? ['attempts' => $e->attempts] : []);
         }
 
         return response()->json(['ok' => true, 'data' => [

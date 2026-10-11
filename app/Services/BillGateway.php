@@ -25,7 +25,7 @@ class BillGateway
     public function inquire(string $type, string $identifier, ?string $providerKey = null): array
     {
         if (! BillTypes::exists($type)) {
-            throw new GatewayException("Unknown bill type '$type'.", 422);
+            throw new GatewayException("Unknown bill type '$type'.", 422, [], 'unknown_type');
         }
         if (! BillTypes::validIdentifier($type, $identifier)) {
             throw ProviderException::invalidInput('The '.BillTypes::get($type)['identifier_label'].' is not valid.');
@@ -34,16 +34,16 @@ class BillGateway
         if ($providerKey !== null && $providerKey !== '') {
             $provider = $this->registry->get($providerKey);
             if (! $provider) {
-                throw new GatewayException("Unknown provider '$providerKey'.", 422);
+                throw new GatewayException("Unknown provider '$providerKey'.", 422, [], 'unknown_provider');
             }
             if (! $provider->supports($type)) {
-                throw new GatewayException("Provider '$providerKey' does not support bill type '$type'.", 422);
+                throw new GatewayException("Provider '$providerKey' does not support bill type '$type'.", 422, [], 'provider_not_supported');
             }
             $chain = [$provider];
         } else {
             $chain = $this->registry->forType($type);
             if (! $chain) {
-                throw new GatewayException("No provider is configured for bill type '$type'.", 503);
+                throw new GatewayException("No provider is configured for bill type '$type'.", 424, [], 'not_available');
             }
         }
 
@@ -62,6 +62,6 @@ class BillGateway
             }
         }
 
-        throw new GatewayException('No provider could answer. Please try again later.', 502, $attempts);
+        throw new GatewayException('No provider could answer. Please try again later.', 424, $attempts, 'providers_failed');
     }
 }

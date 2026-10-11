@@ -53,8 +53,11 @@ Error:
 | 422 | `validation_failed` | Bad input. See `error.details` |
 | 422 | `invalid_identifier` | The bill number is wrong (inquiry) |
 | 429 | `rate_limited` | More than 60 requests per minute per token |
-| 502 | `providers_failed` | All providers failed. `error.details.attempts` shows why |
-| 503 | `not_available` | No provider is configured for this bill type |
+| 422 | `unknown_type`, `unknown_provider`, `provider_not_supported` | Wrong `type` or `provider` |
+| 424 | `providers_failed` | All providers failed. `error.details.attempts` shows why |
+| 424 | `not_available` | No provider is configured for this bill type |
+
+Note: we never use HTTP 5xx for provider problems, because CDNs replace 5xx bodies with their own page. A provider problem is `424`.
 
 ## 4. Bill types
 

@@ -149,11 +149,11 @@ class BillsTest extends TestCase
 
         // Forcing a provider means no fallback.
         $this->withToken($token)->postJson('/api/v1/inquiry', ['type' => 'water', 'identifier' => '1234567', 'provider' => 'first'])
-            ->assertStatus(502);
+            ->assertStatus(424);
 
         // Disabled mapping is not used.
         ProviderBillType::where('provider', 'second')->update(['enabled' => false]);
-        $this->withToken($token)->postJson('/api/v1/inquiry', ['type' => 'water', 'identifier' => '1234567'])->assertStatus(502);
+        $this->withToken($token)->postJson('/api/v1/inquiry', ['type' => 'water', 'identifier' => '1234567'])->assertStatus(424);
     }
 
     public function test_saved_bills_are_isolated_between_users(): void

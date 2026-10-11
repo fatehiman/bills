@@ -7,7 +7,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('bills:user {username} {--admin : Make this user an admin} {--password= : Password (asked if empty)}')]
+#[Signature('bills:user {username} {--admin : Make this user an admin} {--password= : Password (asked if empty, use - to read it from stdin)}')]
 #[Description('Create a user, or change the password of an existing user')]
 class SaveUser extends Command
 {
@@ -15,6 +15,9 @@ class SaveUser extends Command
     {
         $username = (string) $this->argument('username');
         $password = $this->option('password') ?: $this->secret('Password');
+        if ($password === '-') {
+            $password = trim((string) fgets(STDIN));
+        }
         if (! $password || strlen($password) < 8) {
             $this->error('Password must be at least 8 characters.');
 
