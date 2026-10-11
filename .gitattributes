@@ -1,0 +1,15 @@
+* text=auto eol=lf
+
+*.blade.php diff=html
+*.css diff=css
+*.html diff=html
+*.md diff=markdown
+*.php diff=php
+
+/.github export-ignore
+CHANGELOG.md export-ignore
+.styleci.yml export-ignore
+# Reference docs and the app code are different things.
+# Export (git archive) skips them. The deploy must skip them too.
+reference-docs/ export-ignore
+*.md export-ignore
