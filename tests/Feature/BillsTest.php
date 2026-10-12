@@ -301,4 +301,75 @@ class BillsTest extends TestCase
         $this->withToken($token)->postJson('/api/v1/inquiry', ['type' => 'water', 'identifier' => '1234567', 'provider' => 'ghabzino'])
             ->assertOk()->assertJsonPath('data.has_bill', false);
     }
+
+    public function test_extra_info_dates_are_gregorian_and_jalali_is_converted(): void
+    {
+        $this->assertSame('2024-03-20', \App\Support\ExtraInfo::date('1403/01/01'));
+        $this->assertSame('2020-05-20', \App\Support\ExtraInfo::date('۱۳۹۹/۰۲/۳۱'));
+        $this->assertSame('2020-06-22', \App\Support\ExtraInfo::date('06/22/2020 00:00:00'));
+        $this->assertNull(\App\Support\ExtraInfo::date('nonsense'));
+    }
+
+    public function test_ghabzino_electricity_extra_info_is_normalised(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        ProviderSetting::write('ghabzino', 'token', 'gz-token');
+        Http::fake(['*/ElectricityBillInquiry' => Http::response(['Parameters' => [
+            'Amount' => 1365000, 'BillID' => '9924622302128', 'PaymentID' => '136590286',
+            'Address' => 'اصفهان', 'FullName' => 'نام', 'PreviousDate' => '04/15/2020 00:00:00',
+            'CurrentDate' => '06/08/2020 00:00:00', 'PaymentDate' => '06/22/2020 00:00:00', 'BillPdfUrl' => null,
+            'ExtraInfo' => json_encode(['تاریخ صدور صورت حساب' => '1399/03/24', 'نوع تعرفه' => 'خانگی',
+                'مصرف میان باری' => 364, 'مصرف پر باری' => 152, 'مصرف کم باری' => 198, 'تعداد کل روزها' => '54',
+                'آمپراژ' => '25'], JSON_UNESCAPED_UNICODE),
+        ], 'Status' => ['Code' => 'G00000', 'Description' => 'x']])]);
+        $token = $this->user()->rotateApiToken();
+
+        $r = $this->withToken($token)->postJson('/api/v1/inquiry', ['type' => 'electricity', 'identifier' => '9924622302128', 'provider' => 'ghabzino'])->assertOk();
+        $r->assertJsonPath('data.bills.0.extra.full_name', 'نام')
+            ->assertJsonPath('data.bills.0.extra.address', 'اصفهان')
+            ->assertJsonPath('data.bills.0.extra.previous_date', '2020-04-15')
+            ->assertJsonPath('data.bills.0.extra.current_date', '2020-06-08')
+            ->assertJsonPath('data.bills.0.extra.payment_date', '2020-06-22')
+            ->assertJsonPath('data.bills.0.extra.issue_date', '2020-06-13')
+            ->assertJsonPath('data.bills.0.extra.usage_type', 'خانگی')
+            ->assertJsonPath('data.bills.0.extra.consumption', 714)
+            ->assertJsonPath('data.bills.0.extra.consumption_unit', 'kWh')
+            ->assertJsonPath('data.bills.0.extra.billing_days', 54)
+            ->assertJsonPath('data.bills.0.extra.details.آمپراژ', '25');
+    }
+
+    public function test_zohal_gas_extra_info_is_normalised(): void
+    {
+        $this->setupZohal();
+        Http::fake(['service.zohal.io/*' => Http::response(['result' => 1, 'response_body' => ['data' => [
+            'address' => 'تهران', 'amount' => 180000, 'full_name' => 'نام', 'bill_id' => '123456789', 'payment_id' => '987654321',
+            'current_reading_date' => '1403/01/01', 'previous_reading_date' => '1402/12/01', 'payment_date' => '1403/01/15',
+            'consumption_type' => 'خانگی', 'previous_counter_value' => '100', 'current_counter_value' => '120',
+            'taxes' => '5000',
+        ], 'message' => 'ok', 'error_code' => null]])]);
+        $token = $this->user()->rotateApiToken();
+
+        $this->withToken($token)->postJson('/api/v1/inquiry', ['type' => 'gas', 'identifier' => '123456789'])->assertOk()
+            ->assertJsonPath('data.bills.0.extra.current_date', '2024-03-20')
+            ->assertJsonPath('data.bills.0.extra.previous_date', '2024-02-20')
+            ->assertJsonPath('data.bills.0.extra.payment_date', '2024-04-03')
+            ->assertJsonPath('data.bills.0.extra.usage_type', 'خانگی')
+            ->assertJsonPath('data.bills.0.extra.consumption', 20)
+            ->assertJsonPath('data.bills.0.extra.consumption_unit', 'm3')
+            ->assertJsonPath('data.bills.0.extra.details.taxes', '5000');
+    }
+
+    public function test_phone_term_keeps_its_extra_fields(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        ProviderSetting::write('ghabzino', 'token', 'gz-token');
+        Http::fake(['core.inquiry.ayantech.ir/*' => Http::response(['Parameters' => [
+            'FinalTerm' => ['Amount' => 119000, 'BillID' => '400135331145', 'Cycle' => '9903', 'PaymentID' => '11990305'],
+            'MidTerm' => null,
+        ], 'Status' => ['Code' => 'G00000', 'Description' => 'x']])]);
+        $token = $this->user()->rotateApiToken();
+
+        $this->withToken($token)->postJson('/api/v1/inquiry', ['type' => 'mci', 'identifier' => '09121234567', 'provider' => 'ghabzino'])
+            ->assertOk()->assertJsonPath('data.bills.0.extra.cycle', '9903');
+    }
 }

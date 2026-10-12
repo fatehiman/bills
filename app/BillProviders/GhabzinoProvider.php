@@ -3,6 +3,7 @@
 namespace App\BillProviders;
 
 use App\Support\BillData;
+use App\Support\ExtraInfo;
 use App\Support\ProviderException;
 use Illuminate\Support\Facades\Http;
 
@@ -74,7 +75,7 @@ class GhabzinoProvider extends BillProvider
         $description = is_array($json) ? (string) ($json['Status']['Description'] ?? '') : '';
 
         if ($code === 'G00000') {
-            return $this->parse((array) ($json['Parameters'] ?? []));
+            return $this->parse($type, (array) ($json['Parameters'] ?? []));
         }
 
         // The provider says there is no payable bill. This is a normal answer, not an error.
@@ -89,7 +90,7 @@ class GhabzinoProvider extends BillProvider
     }
 
     /** @return BillData[] */
-    private function parse(array $data): array
+    private function parse(string $type, array $data): array
     {
         // Mobile and landline: FinalTerm and MidTerm. Each can be null.
         if (array_key_exists('FinalTerm', $data) || array_key_exists('MidTerm', $data)) {
@@ -97,7 +98,7 @@ class GhabzinoProvider extends BillProvider
             foreach (['final' => 'FinalTerm', 'mid' => 'MidTerm'] as $term => $key) {
                 $t = $data[$key] ?? null;
                 if (is_array($t) && ! empty($t['BillID']) && ! empty($t['PaymentID']) && (string) $t['PaymentID'] !== '0' && (int) ($t['Amount'] ?? 0) > 0) {
-                    $extra = array_filter(['cycle' => $t['Cycle'] ?? null], fn ($v) => $v !== null && $v !== '');
+                    $extra = ExtraInfo::build($this->snake(array_diff_key($t, array_flip(['BillID', 'PaymentID', 'Amount']))), [], $type);
                     $items[] = new BillData((string) $t['BillID'], (string) $t['PaymentID'], (int) $t['Amount'], $term, $extra);
                 }
             }
@@ -113,31 +114,34 @@ class GhabzinoProvider extends BillProvider
             return [];
         }
 
-        // ExtraInfo has Persian keys, so we skip it (the app is English only).
-        $extra = array_filter([
-            'full_name' => $this->clean((string) ($data['FullName'] ?? '')),
-            'address' => $this->clean((string) ($data['Address'] ?? '')),
-            'previous_date' => $this->date($data['PreviousDate'] ?? null),
-            'current_date' => $this->date($data['CurrentDate'] ?? null),
-            'payment_date' => $this->date($data['PaymentDate'] ?? null),
-        ], fn ($v) => $v !== null && $v !== '');
+        // ExtraInfo is a JSON string with Persian keys (usage, meter readings, issue date...).
+        $persian = is_string($data['ExtraInfo'] ?? null) ? json_decode($data['ExtraInfo'], true) : ($data['ExtraInfo'] ?? null);
+        $extra = ExtraInfo::build([
+            'full_name' => $data['FullName'] ?? null,
+            'address' => $data['Address'] ?? null,
+            'previous_date' => $data['PreviousDate'] ?? null,
+            'current_date' => $data['CurrentDate'] ?? null,
+            'payment_date' => $data['PaymentDate'] ?? null,
+            'bill_pdf_url' => $data['BillPdfUrl'] ?? null,
+        ], is_array($persian) ? $persian : [], $type);
 
         return [new BillData($billId, $paymentId, $amount, null, $extra)];
     }
 
-    /** "06/22/2020 00:00:00" -> "2020-06-22" (the provider sends month/day/year). */
-    private function date(mixed $value): ?string
+    /** @return array<string, mixed> "BillID" style keys -> "bill_id" style keys */
+    private function snake(array $fields): array
     {
-        if (! is_string($value) || ! preg_match('#^(\d{2})/(\d{2})/(\d{4})#', $value, $m)) {
-            return null;
+        $out = [];
+        foreach ($fields as $key => $value) {
+            $out[strtolower((string) preg_replace('/(?<!^)[A-Z]/', '_$0', (string) $key))] = $value;
         }
 
-        return "$m[3]-$m[1]-$m[2]";
+        return $out;
     }
 
     private function clean(string $text): string
     {
-        // The app is English only. Ghabzino messages are Persian, so we skip them.
+        // Error messages stay English only (Ghabzino's are Persian, so we skip them). Extra info keeps Persian values.
         return preg_match('/^[ -~]*$/', $text) ? mb_substr($text, 0, 200) : '';
     }
 }

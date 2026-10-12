@@ -24,7 +24,7 @@
             <dl class="extra">
                 @foreach ($item->extra as $k => $v)
                     <dt>{{ ucfirst(str_replace('_', ' ', $k)) }}</dt>
-                    <dd>{{ is_scalar($v) ? $v : json_encode($v) }}</dd>
+                    <dd>{{ is_scalar($v) ? $v : json_encode($v, JSON_UNESCAPED_UNICODE) }}</dd>
                 @endforeach
             </dl>
         </details>

@@ -3,6 +3,7 @@
 namespace App\BillProviders;
 
 use App\Support\BillData;
+use App\Support\ExtraInfo;
 use App\Support\ProviderException;
 use Illuminate\Support\Facades\Http;
 
@@ -100,7 +101,8 @@ class ZohalProvider extends BillProvider
             foreach (['final' => 'final_term', 'mid' => 'mid_term'] as $term => $key) {
                 $t = $data[$key] ?? null;
                 if (is_array($t) && ! empty($t['bill_id']) && ! empty($t['payment_id']) && (int) ($t['amount'] ?? 0) > 0) {
-                    $items[] = new BillData((string) $t['bill_id'], (string) $t['payment_id'], (int) $t['amount'], $term);
+                    $extra = ExtraInfo::build(array_diff_key($t, array_flip(['bill_id', 'payment_id', 'amount'])), [], $type);
+                    $items[] = new BillData((string) $t['bill_id'], (string) $t['payment_id'], (int) $t['amount'], $term, $extra);
                 }
             }
 
@@ -115,17 +117,14 @@ class ZohalProvider extends BillProvider
             return [];
         }
 
-        $extra = array_filter(
-            array_diff_key($data, array_flip(['bill_id', 'payment_id', 'amount'])),
-            fn ($v) => $v !== null && $v !== ''
-        );
+        $extra = ExtraInfo::build(array_diff_key($data, array_flip(['bill_id', 'payment_id', 'amount'])), [], $type);
 
         return [new BillData($billId, $paymentId, $amount, null, $extra)];
     }
 
     private function clean(string $text): string
     {
-        // The app is English only. Zohal messages are Persian, so we skip them.
+        // Error messages stay English only (Zohal's are Persian, so we skip them). Extra info keeps Persian values.
         return preg_match('/^[ -~]*$/', $text) ? mb_substr($text, 0, 200) : '';
     }
 }

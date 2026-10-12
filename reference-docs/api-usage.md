@@ -140,7 +140,27 @@ curl -X POST https://bills.kimiasoft.com/api/v1/inquiry \
 - `bills` is a list. Mobile and landline bills can have two terms: `final` and `mid` (the inquiry returns both; saved bills keep `mid` only if `include_mid_term` is on). Other types have one bill and `term` is `null`.
 - `provider` is the provider that answered. `failed_providers` lists the ones that failed before it (fallback), like `[{"provider":"zohal","error":"..."}]`.
 - `has_bill: false` and `bills: []` mean there is nothing to pay.
-- `extra` can have `full_name`, `address`, dates, etc. (depends on the provider).
+- `extra` has more info about the bill, when the provider gives it. Every key is optional, and the
+  keys are the same for all providers. Text values keep the provider's language (for example a Persian
+  name or address). Dates are Gregorian `YYYY-MM-DD` (Jalali dates from the providers are converted).
+
+  | Key | Meaning |
+  |---|---|
+  | `full_name`, `address` | Subscriber name and address |
+  | `previous_date`, `current_date` | Start and end of the billing period (previous and current meter reading) |
+  | `issue_date` | Date the bill was issued |
+  | `payment_date` | Payment deadline |
+  | `billing_days` | Number of days in the period |
+  | `consumption`, `consumption_unit` | Usage in the period (`kWh` for electricity, `m3` for gas) |
+  | `previous_meter_reading`, `current_meter_reading` | Meter readings (gas) |
+  | `consumption_mid_load`, `consumption_peak`, `consumption_low` | Electricity usage by load band |
+  | `usage_type` | Tariff or consumption type (for example household) |
+  | `distribution_company`, `subscription_id`, `meter_serial` | Electricity and gas subscription info |
+  | `cycle` | Billing cycle of a phone bill |
+  | `bill_pdf_url` | Link to the bill PDF |
+  | `details` | Everything else the provider sent, with the provider's own keys (nothing is dropped) |
+
+  The main data of a bill is always `bill_no`, `payment_no` and `amount`. Do not depend on `extra`.
 
 ### 6.3 Saved bills
 
