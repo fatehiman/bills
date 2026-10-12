@@ -24,6 +24,7 @@
     <div class="card" style="margin-bottom:16px">
         <div class="actions" style="gap:18px">
             <span><span class="muted small">Provider</span><br><b>{{ app(\App\Services\ProviderRegistry::class)->get($bill->provider)?->name() ?? $bill->provider }}</b></span>
+            <span><span class="muted small">Mid term</span><br><b>{{ $bill->include_mid_term ? 'Included' : 'Not included' }}</b></span>
             <span><span class="muted small">Auto fetch</span><br><b>{{ \App\Services\BillManager::PERIODS[$bill->period_days] ?? $bill->period_days.' days' }}</b></span>
             <span><span class="muted small">Last check</span><br><b>{{ $bill->last_fetched_at?->diffForHumans() ?? 'never' }}</b></span>
             <span><span class="muted small">Next check</span><br><b>{{ $bill->next_fetch_at?->diffForHumans() ?? '-' }}</b></span>

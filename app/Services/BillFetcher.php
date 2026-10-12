@@ -26,7 +26,13 @@ class BillFetcher
             // A saved bill always uses the provider chosen for it (no fallback).
             $result = $this->gateway->inquire($bill->bill_type, $bill->identifier, $bill->provider);
 
-            foreach ($result['bills'] as $data) {
+            // Mid term bills are skipped unless the bill asks for them.
+            $bills = array_values(array_filter(
+                $result['bills'],
+                fn ($data) => $data->term !== 'mid' || $bill->include_mid_term
+            ));
+
+            foreach ($bills as $data) {
                 $item = BillItem::firstOrNew([
                     'bill_id' => $bill->id,
                     'bill_no' => $data->billNo,
@@ -43,7 +49,7 @@ class BillFetcher
                     'fetched_at' => now(),
                 ])->save();
             }
-            $status = $result['bills'] ? 'ok' : 'no_bill';
+            $status = $bills ? 'ok' : 'no_bill';
         } catch (ProviderException|GatewayException $e) {
             $status = 'error';
             $error = $e->getMessage();

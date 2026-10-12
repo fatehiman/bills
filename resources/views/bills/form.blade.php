@@ -60,6 +60,12 @@
                 </div>
             </div>
 
+            <div class="field">
+                <input type="hidden" name="include_mid_term" value="0">
+                <label class="check"><input type="checkbox" name="include_mid_term" value="1" @checked(old('include_mid_term', $bill?->include_mid_term ?? false))> Include Mid term bills</label>
+                <div class="hint">Only for phone and mobile bills. Not checked = Mid term bills are ignored.</div>
+            </div>
+
             <div class="actions">
                 <button class="btn" type="submit">@include('partials.icon', ['name' => 'check']) {{ $editing ? 'Save' : 'Add and fetch now' }}</button>
                 <a class="btn alt" href="{{ $editing ? route('bills.show', $bill->id) : route('dashboard') }}">Cancel</a>

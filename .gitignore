@@ -28,6 +28,7 @@ Thumbs.db
 
 # Secrets that live in reference-docs must never go to the public repo
 /reference-docs/zohal-api-token.txt
+/reference-docs/ghabzino-api-token.txt
 /reference-docs/*token*.txt
 /reference-docs/*secret*
 /database/database.sqlite

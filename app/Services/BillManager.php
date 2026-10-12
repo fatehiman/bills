@@ -42,6 +42,7 @@ class BillManager
             'identifier' => ['required', 'string', 'max:60'],
             'provider' => ['nullable', 'string', 'max:40'],
             'period_days' => ['nullable', 'integer', Rule::in(array_keys(self::PERIODS))],
+            'include_mid_term' => ['nullable', 'boolean'],
         ]);
         $v->after(function ($v) use ($user, $input) {
             if ($v->errors()->isNotEmpty()) {
@@ -71,6 +72,7 @@ class BillManager
             'identifier' => $data['identifier'],
             'provider' => $provider,
             'period_days' => (int) ($data['period_days'] ?? 30),
+            'include_mid_term' => (bool) ($data['include_mid_term'] ?? false),
         ]);
         $bill->user_id = $user->id;
         $bill->scheduleNext();
@@ -80,7 +82,7 @@ class BillManager
     }
 
     /**
-     * Update the title, provider and period of a bill. Type and identifier cannot change.
+     * Update the title, provider, period and mid term option of a bill. Type and identifier cannot change.
      *
      * @throws ValidationException
      */
@@ -90,6 +92,7 @@ class BillManager
             'title' => ['sometimes', 'required', 'string', 'max:120'],
             'provider' => ['sometimes', 'required', 'string', 'max:40'],
             'period_days' => ['sometimes', 'required', 'integer', Rule::in(array_keys(self::PERIODS))],
+            'include_mid_term' => ['sometimes', 'boolean'],
         ]);
         $v->after(function ($v) use ($bill, $input) {
             if (! empty($input['provider'])) {

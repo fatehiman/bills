@@ -29,7 +29,7 @@ class BillController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $bill = $this->manager->create($request->user(), $request->only('title', 'bill_type', 'identifier', 'provider', 'period_days'));
+        $bill = $this->manager->create($request->user(), $request->only('title', 'bill_type', 'identifier', 'provider', 'period_days', 'include_mid_term'));
         $r = $this->fetcher->fetch($bill);
 
         return response()->json(['ok' => true, 'data' => $this->bill($bill->refresh(), true), 'fetch' => $r], 201);
@@ -42,7 +42,7 @@ class BillController extends Controller
 
     public function update(Request $request, string $id): JsonResponse
     {
-        $bill = $this->manager->update($this->mine($request, $id), $request->only('title', 'provider', 'period_days'));
+        $bill = $this->manager->update($this->mine($request, $id), $request->only('title', 'provider', 'period_days', 'include_mid_term'));
 
         return response()->json(['ok' => true, 'data' => $this->bill($bill, true)]);
     }
@@ -93,6 +93,7 @@ class BillController extends Controller
             'identifier' => $b->identifier,
             'provider' => $b->provider,
             'period_days' => $b->period_days,
+            'include_mid_term' => (bool) $b->include_mid_term,
             'last_fetched_at' => $b->last_fetched_at?->toIso8601String(),
             'next_fetch_at' => $b->next_fetch_at?->toIso8601String(),
             'last_status' => $b->last_status,

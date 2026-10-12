@@ -29,9 +29,13 @@ Live site: https://bills.kimiasoft.com (home page is "under construction" on pur
 
 All provider code is in `app/BillProviders/`. The app never talks to a provider directly. It uses `App\Services\BillGateway`.
 
-**To add a new provider (for example Ghabzino), add one PHP file. Nothing else changes.**
+Providers now: **Zohal** (`ZohalProvider.php`) and **Ghabzino** (`GhabzinoProvider.php`, Ayantech web service).
+Ghabzino has no Rightel. Its gas service needs the gas **participation code** (not the bill ID).
+Ghabzino token goes in **Admin > Providers** (or `php artisan bills:provider-set ghabzino token`).
 
-1. Copy `app/BillProviders/ZohalProvider.php` to `app/BillProviders/GhabzinoProvider.php`.
+**To add a new provider, add one PHP file. Nothing else changes.**
+
+1. Copy `app/BillProviders/ZohalProvider.php` to `app/BillProviders/<Name>Provider.php`.
 2. Change `key()`, `name()`, `supportedTypes()`, `settingsFields()` and `inquire()`.
    `inquire()` returns a list of `App\Support\BillData` (empty list = no payable bill) or throws
    `ProviderException::unavailable()` (try the next provider) / `ProviderException::invalidInput()` (stop).
@@ -43,6 +47,11 @@ The file is found automatically (any file named `*Provider.php`). Mapping and or
 If a caller does not choose a provider, the gateway uses the admin order and **falls back** to the next provider when one is unavailable.
 
 To add a new bill type: add an entry in `app/Support/BillTypes.php` and an icon in `partials/icon.blade.php`.
+
+## Mid term bills
+
+Mobile and landline providers can return a Final term and a Mid term bill. **Mid term bills are ignored by default.**
+Each saved bill has a checkbox **Include Mid term bills** (API field `include_mid_term`). It is off unless you turn it on.
 
 ## Automatic fetching
 
@@ -78,7 +87,7 @@ php artisan test
 ## Deploy (ger1, `bills.kimiasoft.com`)
 
 - App dir: `/mnt/ger_hd1/www/bills/app`, web root `app/public`, PHP 8.4 (PHP-FPM), MySQL database `bills` / user `bills`.
-- Secrets (`.env`, DB password, Zohal token) exist **only on the server**. They are never in git.
+- Secrets (`.env`, DB password, provider tokens) exist **only on the server**. They are never in git.
 - **Do not upload `reference-docs/` or any `*.md` file** to the server.
 - Zohal answers only requests from IPs registered in the Zohal panel. Register the server IP `162.55.167.140`.
 

@@ -65,11 +65,11 @@ Note: we never use HTTP 5xx for provider problems, because CDNs replace 5xx bodi
 |---|---|---|
 | `electricity` | Electricity | Electricity bill ID (6-20 digits) |
 | `water` | Water | Water bill ID (6-20 digits) |
-| `gas` | Gas | Gas bill ID (6-20 digits) |
+| `gas` | Gas | Gas bill ID (6-20 digits). Ghabzino needs the gas participation code instead |
 | `landline` | Landline phone | Phone number with area code, like `02112345678` |
 | `mci` | MCI (Hamrah-e Aval) | Mobile number, like `09121234567` |
 | `irancell` | Irancell | Mobile number |
-| `rightel` | Rightel | Mobile number |
+| `rightel` | Rightel | Mobile number (Zohal only) |
 
 Persian and Arabic digits, spaces and dashes in `identifier` are accepted. We clean them.
 
@@ -77,7 +77,7 @@ Use `GET /api/v1/bill-types` to see the live list and which providers serve each
 
 ## 5. Providers, mapping and fallback
 
-- A **provider** is an outside service that knows the bills (now: `zohal`).
+- A **provider** is an outside service that knows the bills (now: `zohal` and `ghabzino`).
 - The admin decides which providers serve which bill type, and in which order.
   Example: `water -> zohal, then ghabzino`.
 - **The `provider` field is optional everywhere.**
@@ -137,7 +137,7 @@ curl -X POST https://bills.kimiasoft.com/api/v1/inquiry \
 }
 ```
 
-- `bills` is a list. Mobile and landline bills can have two terms: `final` and `mid`. Other types have one bill and `term` is `null`.
+- `bills` is a list. Mobile and landline bills can have two terms: `final` and `mid` (the inquiry returns both; saved bills keep `mid` only if `include_mid_term` is on). Other types have one bill and `term` is `null`.
 - `provider` is the provider that answered. `failed_providers` lists the ones that failed before it (fallback), like `[{"provider":"zohal","error":"..."}]`.
 - `has_bill: false` and `bills: []` mean there is nothing to pay.
 - `extra` can have `full_name`, `address`, dates, etc. (depends on the provider).
@@ -159,6 +159,7 @@ Create a bill and fetch it once.
 | `bill_type` | yes | Bill type |
 | `identifier` | yes | Bill or phone number |
 | `provider` | no | If left out, the first provider of the admin list is saved with the bill |
+| `include_mid_term` | no | `true` to also keep Mid term bills of phone/mobile. Default `false` |
 | `period_days` | no | Auto fetch period: `0` (manual only), `1`, `3`, `7`, `15`, `30` (default), `60` |
 
 ```bash
@@ -192,7 +193,7 @@ A failed fetch is retried after 6 hours.
 One bill with its unpaid items.
 
 #### `PATCH /api/v1/bills/{id}`
-Change `title`, `provider` or `period_days`. (Type and identifier cannot change.)
+Change `title`, `provider`, `period_days` or `include_mid_term`. (Type and identifier cannot change.)
 
 #### `DELETE /api/v1/bills/{id}`
 Delete the bill and its history.

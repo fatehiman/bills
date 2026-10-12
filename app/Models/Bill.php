@@ -8,12 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['user_id', 'title', 'bill_type', 'identifier', 'provider', 'period_days', 'next_fetch_at', 'last_fetched_at', 'last_status', 'last_error'])]
+#[Fillable(['user_id', 'title', 'bill_type', 'identifier', 'provider', 'period_days', 'include_mid_term', 'next_fetch_at', 'last_fetched_at', 'last_status', 'last_error'])]
 class Bill extends Model
 {
     protected function casts(): array
     {
-        return ['next_fetch_at' => 'datetime', 'last_fetched_at' => 'datetime'];
+        return ['next_fetch_at' => 'datetime', 'last_fetched_at' => 'datetime', 'include_mid_term' => 'boolean'];
     }
 
     public function user(): BelongsTo

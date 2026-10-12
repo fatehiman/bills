@@ -32,6 +32,7 @@ class BillsTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
         ProviderSetting::write('zohal', 'token', 'test-token');
+        ProviderBillType::where('provider', 'ghabzino')->delete(); // these tests use Zohal only
     }
 
     public function test_home_is_under_construction_and_login_is_hidden(): void
@@ -238,5 +239,66 @@ class BillsTest extends TestCase
         $this->assertTrue(ProviderBillType::where('bill_type', 'water')->first()->enabled);
         $this->assertFalse(ProviderBillType::where('bill_type', 'gas')->first()->enabled);
         $this->assertSame(3, ProviderBillType::where('bill_type', 'water')->first()->priority);
+    }
+
+    public function test_mid_term_is_skipped_unless_the_bill_asks_for_it(): void
+    {
+        $this->setupZohal();
+        Http::fake(['service.zohal.io/*' => Http::response(['result' => 1, 'response_body' => [
+            'data' => [
+                'final_term' => ['amount' => 200000, 'bill_id' => '333', 'payment_id' => '444'],
+                'mid_term' => ['amount' => 100000, 'bill_id' => '111', 'payment_id' => '222'],
+            ], 'message' => 'ok', 'error_code' => null,
+        ]])]);
+        $u = $this->user();
+
+        $this->actingAs($u)->post('/bills', ['title' => 'Mobile', 'bill_type' => 'mci', 'identifier' => '09121234567', 'provider' => 'zohal'])->assertRedirect();
+        $bill = Bill::firstOrFail();
+        $this->assertFalse($bill->include_mid_term);
+        $this->assertSame(['final'], $bill->items()->pluck('term')->all());
+
+        $this->actingAs($u)->put("/bills/{$bill->id}", ['include_mid_term' => '1'])->assertRedirect();
+        $this->assertTrue($bill->refresh()->include_mid_term);
+        $this->actingAs($u)->post("/bills/{$bill->id}/fetch");
+        $this->assertEqualsCanonicalizing(['final', 'mid'], $bill->items()->pluck('term')->all());
+    }
+
+    public function test_ghabzino_provider(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        ProviderSetting::write('ghabzino', 'token', 'gz-token');
+        Http::fake(['core.inquiry.ayantech.ir/*' => Http::response(['Parameters' => [
+            'FinalTerm' => ['Amount' => 119000, 'BillID' => '400135331145', 'Cycle' => '9903', 'PaymentID' => '11990305'],
+            'MidTerm' => ['Amount' => 225000, 'BillID' => '400135331145', 'Cycle' => null, 'PaymentID' => '22590449'],
+        ], 'Status' => ['Code' => 'G00000', 'Description' => 'x']])]);
+        $token = $this->user()->rotateApiToken();
+
+        $this->withToken($token)->postJson('/api/v1/inquiry', ['type' => 'mci', 'identifier' => '09121234567', 'provider' => 'ghabzino'])
+            ->assertOk()
+            ->assertJsonPath('data.provider', 'ghabzino')
+            ->assertJsonPath('data.bills.0.payment_no', '11990305')
+            ->assertJsonPath('data.bills.1.term', 'mid');
+        Http::assertSent(fn ($r) => str_ends_with($r->url(), '/MCIMobileBillInquiry')
+            && $r['Identity']['Token'] === 'gz-token' && $r['Parameters']['MobileNumber'] === '09121234567');
+    }
+
+    public function test_ghabzino_single_bill_and_no_bill(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        ProviderSetting::write('ghabzino', 'token', 'gz-token');
+        Http::fake([
+            '*/ElectricityBillInquiry' => Http::response(['Parameters' => [
+                'Amount' => 1365000, 'BillID' => '9924622302128', 'PaymentID' => '136590286', 'PaymentDate' => '06/22/2020 00:00:00', 'FullName' => 'Test',
+            ], 'Status' => ['Code' => 'G00000', 'Description' => 'x']]),
+            '*/WaterBillInquiry' => Http::response(['Parameters' => null, 'Status' => ['Code' => 'GD2278', 'Description' => 'x']]),
+        ]);
+        $token = $this->user()->rotateApiToken();
+
+        $this->withToken($token)->postJson('/api/v1/inquiry', ['type' => 'electricity', 'identifier' => '9924622302128', 'provider' => 'ghabzino'])
+            ->assertOk()
+            ->assertJsonPath('data.bills.0.amount', 1365000)
+            ->assertJsonPath('data.bills.0.extra.payment_date', '2020-06-22');
+        $this->withToken($token)->postJson('/api/v1/inquiry', ['type' => 'water', 'identifier' => '1234567', 'provider' => 'ghabzino'])
+            ->assertOk()->assertJsonPath('data.has_bill', false);
     }
 }

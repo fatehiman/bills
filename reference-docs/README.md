@@ -9,4 +9,5 @@ Reference and customer documents and files. They are **not** part of the applica
 |---|---|
 | `api-usage.md` | Complete manual of the Bills API, with examples |
 | `zohal-api-1.json` | Zohal API documentation (OpenAPI), from the provider |
+| `ghabzino-api-token.txt` | Ghabzino API token. **Secret. Ignored by git. Do not commit.** |
 | `zohal-api-token.txt` | Zohal API token. **Secret. Ignored by git. Do not commit.** |

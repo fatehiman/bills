@@ -41,7 +41,7 @@ class BillController extends Controller
 
     public function store(Request $request)
     {
-        $bill = $this->manager->create($request->user(), $request->only('title', 'bill_type', 'identifier', 'provider', 'period_days'));
+        $bill = $this->manager->create($request->user(), $request->only('title', 'bill_type', 'identifier', 'provider', 'period_days', 'include_mid_term'));
         $r = $this->fetcher->fetch($bill);
 
         return redirect()->route('bills.show', $bill)->with('status', $this->message($r));
@@ -65,7 +65,7 @@ class BillController extends Controller
     public function update(Request $request, string $id)
     {
         $bill = $this->mine($id);
-        $this->manager->update($bill, $request->only('title', 'provider', 'period_days'));
+        $this->manager->update($bill, $request->only('title', 'provider', 'period_days', 'include_mid_term'));
 
         return redirect()->route('bills.show', $bill)->with('status', 'Bill saved.');
     }
